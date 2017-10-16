@@ -30,7 +30,7 @@ const main = async () => {
   })
   
   await page.goto(EXAMPLE_URL)
-  for (let requestId of mixedContentIssues.values()) {
+  for (let requestId of mixedContentIssues) {
     const {method, url, resourceType} = failedRequests.get(requestId)
     console.log(`Mixed Content warning when sending ${method} request to ${url} (${resourceType})`)
   }
