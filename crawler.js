@@ -8,32 +8,58 @@ class Worker {
   constructor(browser, crawler) {
     this.browser = browser
     this.crawler = crawler
+    this._done = false
+  }
+
+  get done() {
+    return this._done
+  }
+
+  set done(done) {
+    this._done = done
   }
 
   async init(index) {
     this.name = `worker_${index}`
-    console.log(`Initializing ${this.name}`)
+    console.log(`${chalk.yellow('Initializing')} ${this.name}`)
     return new Promise(async (resolve, reject) => {
       this.page = await this.browser.newPage()
       resolve(this)
     })
   }
 
-  async visit(url) {
-    console.log(`${chalk.bgBlue.white.bold("Visiting")} ${url}`)
+  async sleep(timeout) {
+    return new Promise((resolve, reject) => {
+      setTimeout(() => {
+        resolve(true)
+      }, timeout)
+    })
+  }
+
+  async run() {
     return new Promise(async (resolve, reject) => {
-      try {
-        await this.page.goto(url, {timeout: 20000})
-        const links = await this.page.evaluate(() => {
-          return Array.from(document.querySelectorAll('a')).map(link => link.href)
-        })
-        this.crawler.visitedUrls.add(url)
-        this.crawler.push(new Set(links))
-        resolve(true)
-      } catch(error) {
-        this.crawler.errors.add(url)
-        resolve(true)
+      let location = ''
+      while (!this.crawler.done) {
+        try {
+          location = this.crawler.nextLocation
+          if (typeof location === 'undefined') {
+            this.done = true
+            await this.sleep(2000)
+          } else {
+            this.done = false
+            console.log(`${chalk.bgBlue.white.bold(this.name)}\tvisiting ${chalk.green(location)}`)
+            await this.page.goto(location, {timeout: 20000})
+            const links = await this.page.evaluate(() => {
+              return Array.from(document.querySelectorAll('a')).map(link => link.href)
+            })
+            this.crawler.visitedUrls.add(location)
+            this.crawler.push(new Set(links))
+          }
+        } catch(error) {
+          this.crawler.errors.add(location)
+        }
       }
+      resolve(true)
     })
   }
 }
@@ -47,7 +73,18 @@ class Crawler {
     this.count = {}
     this.errors = new Set()
   }
+  get pending() {
+    return [...this.pendingUrls]
+  }
 
+  get nextLocation () {
+    const [location, ...urls] = [...this.pendingUrls]
+    this.pendingUrls = new Set(urls)
+    return location
+  }
+  get done() {
+    return this.workers.every(worker => {return worker.done}) && Object.is(this.pending.length, 0)
+  }
   async init() {
     return new Promise(async (resolve, reject) => {
       try {
@@ -70,20 +107,31 @@ class Crawler {
     this.pendingUrls = new Set([...this.pendingUrls].slice(this.poolSize))
     return targets
   }
-
+  async writeReport() {
+    return new Promise((resolve, reject) => {
+      fs.writeFile('report.txt', [...this.errors].join("\n"), 'utf-8', error => {
+        if (error) {
+          console.error("Couldn't write to report.txt")
+          reject(error)
+        } else {
+          resolve(true)
+        }
+      })
+    })
+  }
   async crawl() {
     return new Promise(async (resolve, reject) => {
-      let locations = []
-      while (locations = this.popLocations()) {
-        if (locations.length === 0) {
-          break
-        }
-        const promises = locations.map((location, index) => {
-          return this.workers[index].visit(location)
+      try {
+        let locations = []
+        const promises = this.workers.map(worker => {
+          return worker.run()
         })
         await Promise.all(promises)
+        await this.writeReport()
+        resolve(true)
+      } catch(error) {
+        reject(error)
       }
-      resolve(this.visitedUrls.size)
     })
     
   }

@@ -8,6 +8,8 @@
 
 - [x] Add crawling ability
 - [x] Create a worker pool so that the code doesn't create millions of [Puppeteer](https://github.com/GoogleChrome/puppeteer) instances
+- [ ] Improve error handling in async chains
+- [ ] Implement **actual** reporting
+- [ ] Add throttling ability for slower backends
+- [x] Make it so that each `worker` doesn't have to wait on others to keep on crawling
 - [ ] Use [Puppeteer](https://github.com/GoogleChrome/puppeteer) further to indicate where the *Mixed Content* is located on the page
-- [ ] Actually handle `maxRadius`
-- [ ] `failedRequests` and `mixedContentIssues` should be wrapped in a common class exposing `get`/`set`
