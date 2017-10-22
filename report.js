@@ -38,9 +38,12 @@ ${[...this.visitedUrls].map(url => {return `${url} (found ${chalk.blue.bold(this
 
 ${chalk.red('ERRORS')}
 
-${[...this.errors].join('\n')}
-${JSON.stringify(this.count)}
-      `
+${this.errors.size > 0 ? [...this.errors].join('\n') : chalk.white.bgGreen.bold('No errors')}
+
+${chalk.yellow('Number of times we encountered internal links')}
+
+${JSON.stringify(this.count, null, 2)}
+`
       fs.writeFile(this.path, report, 'utf-8', error => {
         if (error) {
           reject(error)
