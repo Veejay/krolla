@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>JSDoc: Home</title>
+    <title>JSDoc: Source: app.js</title>
 
     <script src="scripts/prettify/prettify.js"> </script>
     <script src="scripts/prettify/lang-css.js"> </script>
@@ -17,32 +17,37 @@
 
 <div id="main">
 
-    <h1 class="page-title">Home</h1>
+    <h1 class="page-title">Source: app.js</h1>
 
     
 
 
 
     
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>const { Crawler } = require('./crawler.js')
 
+/**
+ * @see crawler.js
+ */
+const crawler = new Crawler({rootUrl: 'https://fr.orson.io', poolSize: 32})
 
-    <h3> </h3>
+const main = async () => {
+  try {
+    await crawler.init()
+    const crawledUrls = await crawler.crawl()
+    console.log('Done crawling. Find run information in report.txt')
+    // Clean up
+    await crawler.browser.close()
+  } catch(e) {
+    console.error(e)
+  }
+}
 
-
-
-
-
-
-
-
-
-
-    
-
-
-
-
-
+main()</code></pre>
+        </article>
+    </section>
 
 
 
