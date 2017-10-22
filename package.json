@@ -5,6 +5,8 @@
   "license": "MIT",
   "dependencies": {
     "chalk": "^2.1.0",
+    "global": "^4.3.2",
+    "jsdoc": "^3.5.5",
     "puppeteer": "^0.12.0"
   }
 }
