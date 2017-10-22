@@ -11,7 +11,7 @@ const Stream = require('stream')
 // The Worker class represents the workers doing the actual crawling, 
 // which report crawled URLs to the Crawler
 const { Worker } = require('./worker.js')
-
+const { Report} = require('./report.js')
 class Crawler {
   /**
    * @description Creates a new Crawler instance
@@ -80,7 +80,7 @@ class Crawler {
         resolve(true)
       })
       readStream.pipe(writeStream)
-      for (let line of this.errors) {
+      for (let line of [...this.errors].filter(url => {return !this.visitedUrls.has(url)})) {
         readStream.push(`${line}\n`)
       }
       // Indicating the end of data
@@ -96,6 +96,12 @@ class Crawler {
     const [location, ...urls] = [...this.pendingUrls]
     this.pendingUrls = new Set(urls)
     return location
+  }
+
+  async writeReport(path) {
+    const {visitedUrls, errors, count} = this
+    const report = new Report({visitedUrls, errors, count, path: './report.txt'})
+    return report.generate()
   }
 
   /**
@@ -153,10 +159,20 @@ class Crawler {
    * @returns {void}
    */
   push(urls) {
+    const cleanUrl = url => {
+      const {protocol, host, path:fullPath} = URL.parse(url)
+      const [path, ...query] = fullPath.split(/\?/)
+      return `${protocol}//${host}${path}`
+    }
     for (let url of urls) {
       this.incrementCount(url)
     }
-    for (let url of [...urls].filter(url => { return this.crawlable(url) })) {
+    const crawlableUrls = [...urls].filter(url => {
+      return this.crawlable(url) 
+    }).map(url => {
+      return cleanUrl(url)
+    })
+    for (let url of crawlableUrls) {
       this.pendingUrls.add(url)
     }
   }

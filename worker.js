@@ -65,6 +65,7 @@ const chalk = require('chalk')
             this.done = false
             console.log(`${chalk.bgBlue.white.bold(this.name)}\tvisiting ${chalk.green(location)}`)
             this.crawler.locked.add(location)
+            await this.sleep(1000)
             await this.page.goto(location, {timeout: 20000})
             const links = await this.page.evaluate(() => {
               return Array.from(document.querySelectorAll('a')).map(link => link.href)

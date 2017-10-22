@@ -3,7 +3,7 @@ const { Crawler } = require('./crawler.js')
 /**
  * @see crawler.js
  */
-const crawler = new Crawler({rootUrl: 'https://fr.orson.io', poolSize: 32})
+const crawler = new Crawler({rootUrl: 'http://www.corse-le-gr20.com', poolSize: 16})
 
 const main = async () => {
   try {

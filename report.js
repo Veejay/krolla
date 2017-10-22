@@ -1,14 +1,55 @@
+const {Readable}  = require('stream')
+const chalk       = require('chalk')
+const fs          = require('fs')
+
 class Report {
-  constructor(visitedLinks, format) {
-    this.data = [...visitedLinks].sort((a, b) => {
-      const bigger = a[1] > b[1]
-      const smaller = a[1] < b[1]
-      return bigger ? 1 : smaller ? -1 : 0
+  constructor({visitedUrls, errors, count, path}) {
+    Object.assign(this, {
+      visitedUrls,
+      errors,
+      count,
+      path
     })
-    this.format = format
   }
 
-  toText() {
-    return 'TO BE IMPLEMENTED'
+  generate() {
+    return new Promise((resolve, reject) => {
+      // const writeStream = fs.createWriteStream(this.path)
+      // const readStream = new Readable({objectMode: true})
+
+      // readStream._read = () => {
+      //   // Must be implemeted, but we're pushing manually
+      // }
+      
+      // readStream.on('error', () => {
+
+      // })
+      // readStream.on('end', () => {
+      //   resolve(true)
+      // })
+
+      // TODO: Implement HTML, CSV, text formats using a TransformStream in objectMode
+
+      //readStream.pipe(writeStream)
+      const report = `
+${chalk.yellow('VISITED URLS')}
+
+${[...this.visitedUrls].map(url => {return `${url} (found ${chalk.blue.bold(this.count[url])} times while crawling)`}).join('\n')}
+
+${chalk.red('ERRORS')}
+
+${[...this.errors].join('\n')}
+${JSON.stringify(this.count)}
+      `
+      fs.writeFile(this.path, report, 'utf-8', error => {
+        if (error) {
+          reject(error)
+        }
+        resolve(report)
+      })
+      
+    })
   }
 }
+
+module.exports = { Report }
