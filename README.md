@@ -9,7 +9,7 @@
 - [x] Add crawling ability
 - [x] Create a worker pool so that the code doesn't create millions of [Puppeteer](https://github.com/GoogleChrome/puppeteer) instances
 - [x] Add jsdoc
-- [x] Move class [Worker](https://github.com/Veejay/krolla/blob/d0c200f752b280e4bc45420cfb962d470813e438/crawler.js#L5) to a separate module
+- [x] Move class Worker to a separate module
 - [ ] Improve error handling in async chains
 - [ ] Implement **actual** reporting
 - [ ] Add throttling ability for slower backends
