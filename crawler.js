@@ -1,90 +1,52 @@
+// Used to check whether or not links point to external URLs
 const URL = require('url')
+// Used for the actual crawling with full browser capabilities
 const puppeteer = require('puppeteer')
+// Color debugging in the terminal
 const chalk = require('chalk')
+// Gratuitous use of streams to write report
 const fs = require('fs')
-class Worker {
-  // Kind of strange that the scouts themselves would grab the
-  // jobs but it'll for now
-  constructor(browser, crawler) {
-    this.browser = browser
-    this.crawler = crawler
-    this._done = false
-  }
+const Stream = require('stream')
 
-  get done() {
-    return this._done
-  }
-
-  set done(done) {
-    this._done = done
-  }
-
-  async init(index) {
-    this.name = `worker_${index}`
-    console.log(`${chalk.yellow('Initializing')} ${this.name}`)
-    return new Promise(async (resolve, reject) => {
-      this.page = await this.browser.newPage()
-      resolve(this)
-    })
-  }
-
-  async sleep(timeout) {
-    return new Promise((resolve, reject) => {
-      setTimeout(() => {
-        resolve(true)
-      }, timeout)
-    })
-  }
-
-  async run() {
-    return new Promise(async (resolve, reject) => {
-      let location = ''
-      while (!this.crawler.done) {
-        try {
-          location = this.crawler.nextLocation
-          if (typeof location === 'undefined') {
-            this.done = true
-            await this.sleep(2000)
-          } else {
-            this.done = false
-            console.log(`${chalk.bgBlue.white.bold(this.name)}\tvisiting ${chalk.green(location)}`)
-            await this.page.goto(location, {timeout: 20000})
-            const links = await this.page.evaluate(() => {
-              return Array.from(document.querySelectorAll('a')).map(link => link.href)
-            })
-            this.crawler.visitedUrls.add(location)
-            this.crawler.push(new Set(links))
-          }
-        } catch(error) {
-          this.crawler.errors.add(location)
-        }
-      }
-      resolve(true)
-    })
-  }
-}
+// The Worker class represents the workers doing the actual crawling, 
+// which report crawled URLs to the Crawler
+const { Worker } = require('./worker.js')
 
 class Crawler {
-  constructor({rootUrl, poolSize}) {
+  /**
+   * @description Creates a new Crawler instance
+   * @param {String} rootUrl - The URL we start crawling from
+   * @param {Integer} poolSize - The number of concurrent Promise-based workers we'll use to crawl pages 
+   */
+  constructor({ rootUrl, poolSize }) {
     this.poolSize = poolSize
     this.host = URL.parse(rootUrl).host
     this.pendingUrls = new Set([rootUrl])
+    this.locked = new Set()
     this.visitedUrls = new Set()
     this.count = {}
     this.errors = new Set()
   }
+
+  /**
+   * @returns {Array} A collection of crawlable URLs
+   */
   get pending() {
     return [...this.pendingUrls]
   }
 
-  get nextLocation () {
-    const [location, ...urls] = [...this.pendingUrls]
-    this.pendingUrls = new Set(urls)
-    return location
-  }
+  /**
+   * @description Indicates whether or not we're done crawling the website
+   */
   get done() {
-    return this.workers.every(worker => {return worker.done}) && Object.is(this.pending.length, 0)
+    return this.workers.every(worker => { return worker.done }) && Object.is(this.pending.length, 0)
   }
+
+  /**
+   * @description Initializer for the crawler since constructors cannot be async and we need to
+   * initialize the Puppeteer browser instance
+   * @returns {Promise} A promise for the intialized crawler
+   */
   async init() {
     return new Promise(async (resolve, reject) => {
       try {
@@ -96,29 +58,52 @@ class Crawler {
         }
         this.workers = await Promise.all(workers)
         resolve(this)
-      } catch(e) {
+      } catch (e) {
         reject(e)
       }
     })
   }
 
-  popLocations() {
-    const targets = [...this.pendingUrls].slice(0, this.poolSize - 1)
-    this.pendingUrls = new Set([...this.pendingUrls].slice(this.poolSize))
-    return targets
-  }
+  /**
+   * @description Writes a report about the crawl
+   * @todo Implement actual Report class
+   * @returns {void} 
+   */
   async writeReport() {
     return new Promise((resolve, reject) => {
-      fs.writeFile('report.txt', [...this.errors].join("\n"), 'utf-8', error => {
-        if (error) {
-          console.error("Couldn't write to report.txt")
-          reject(error)
-        } else {
-          resolve(true)
-        }
+      const readStream = new Stream.Readable()
+      const writeStream = fs.createWriteStream('report.txt')
+      writeStream.on('error', error => {
+        reject(error)
       })
+      writeStream.on('close', (event) => {
+        resolve(true)
+      })
+      readStream.pipe(writeStream)
+      for (let line of this.errors) {
+        readStream.push(`${line}\n`)
+      }
+      // Indicating the end of data
+      readStream.push(null)
     })
   }
+
+  /**
+   * @description Used by the workers to take a job from the pending queue
+   * @returns {String} URL to crawl
+   */
+  get nextLocation() {
+    const [location, ...urls] = [...this.pendingUrls]
+    this.pendingUrls = new Set(urls)
+    return location
+  }
+
+  /**
+   * @description Orchestrator for the crawler
+   * Starts the workers and wait for them all to be done
+   * When everything is settled, writes a report to a file
+   * @returns {Promise}
+   */
   async crawl() {
     return new Promise(async (resolve, reject) => {
       try {
@@ -129,38 +114,53 @@ class Crawler {
         await Promise.all(promises)
         await this.writeReport()
         resolve(true)
-      } catch(error) {
+      } catch (error) {
         reject(error)
       }
     })
-    
   }
 
+  /**
+   * @description Each time we see a link to some URL on a page, we increment a counter.
+   * This is then used in the report to indicate what the website links to the most internally.
+   * @param {String} url - The URL the link points to
+   */
   incrementCount(url) {
     this.count[url] = (this.count[url] || 0) + 1
   }
 
+  /**
+   * @description Indicates whether or not a link is an external link
+   * @param {String} url - The URL we're checking
+   * @returns {Boolean}
+   */
   outbound(url) {
     return URL.parse(url).host !== this.host
   }
 
+  /**
+   * @description A link is crawlable if it's never been visited before and if it's an internal link
+   * @param {String} url
+   * @returns {Boolean}
+   */
   crawlable(url) {
     return !this.visitedUrls.has(url) && !this.outbound(url)
   }
+
   /**
-   * @description Adds potentiallly crawlable URLs to the queue
-   * @param {Set} urls 
-   * @example crawler.push(['https://www.google.com', 'https://fr.orson.io])
+   * @description Adds a bunch of URLs to the pending queue
+   * @param {Set} urls - The URLs we encountered while crawling
    * @returns {void}
    */
   push(urls) {
     for (let url of urls) {
       this.incrementCount(url)
     }
-    for (let url of [...urls].filter(url => {return this.crawlable(url) })) {
+    for (let url of [...urls].filter(url => { return this.crawlable(url) })) {
       this.pendingUrls.add(url)
     }
   }
 }
 
+// Imported in app.js
 module.exports = { Crawler }

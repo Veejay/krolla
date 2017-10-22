@@ -38,12 +38,16 @@ class Worker {
       while (!this.crawler.done) {
         try {
           location = this.crawler.nextLocation
+          if (this.crawler.locked.has(location)) {
+            continue
+          }
           if (typeof location === 'undefined') {
             this.done = true
             await this.sleep(2000)
           } else {
             this.done = false
             console.log(`${chalk.bgBlue.white.bold(this.name)}\tvisiting ${chalk.green(location)}`)
+            this.crawler.locked.add(location)
             await this.page.goto(location, {timeout: 20000})
             const links = await this.page.evaluate(() => {
               return Array.from(document.querySelectorAll('a')).map(link => link.href)
