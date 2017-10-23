@@ -3,12 +3,13 @@ const chalk       = require('chalk')
 const fs          = require('fs')
 
 class Report {
-  constructor({visitedUrls, errors, count, path}) {
+  constructor({visitedUrls, errors, count, mixedContentLocations, path}) {
     Object.assign(this, {
       visitedUrls,
       errors,
       count,
-      path
+      path,
+      mixedContentLocations
     })
   }
 
@@ -39,6 +40,10 @@ ${[...this.visitedUrls].map(url => {return `${url} (found ${chalk.blue.bold(this
 ${chalk.red('ERRORS')}
 
 ${this.errors.size > 0 ? [...this.errors].join('\n') : chalk.white.bgGreen.bold('No errors')}
+
+${chalk.blue('Mixed content issues')}
+
+${JSON.stringify(this.mixedContentLocations)}
 
 ${chalk.yellow('Number of times we encountered internal links')}
 

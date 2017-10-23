@@ -99,8 +99,8 @@ class Crawler {
   }
 
   async writeReport(path) {
-    const {visitedUrls, errors, count} = this
-    const report = new Report({visitedUrls, errors, count, path: './report.txt'})
+    const {visitedUrls, errors, count, mixedContentLocations} = this
+    const report = new Report({visitedUrls, errors, count, mixedContentLocations, path: './report.txt'})
     return report.generate()
   }
 
@@ -117,7 +117,11 @@ class Crawler {
         const promises = this.workers.map(worker => {
           return worker.run()
         })
-        await Promise.all(promises)
+        const workers = await Promise.all(promises)
+        this.mixedContentLocations = workers.reduce((memo, worker) => {
+          memo = [...memo, ...worker.mixedContentLocations]
+          return memo
+        }, [])
         await this.writeReport()
         resolve(true)
       } catch (error) {

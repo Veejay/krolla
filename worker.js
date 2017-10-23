@@ -9,6 +9,9 @@ const chalk = require('chalk')
     this.browser = browser
     this.crawler = crawler
     this._done = false
+    this.currentLocation = ''
+    this.failedRequests = new Map()
+    this.mixedContentIssues = new Set()
   }
 
   get done() {
@@ -29,8 +32,27 @@ const chalk = require('chalk')
     console.log(`${chalk.yellow('Initializing')} ${this.name}`)
     return new Promise(async (resolve, reject) => {
       this.page = await this.browser.newPage()
+      this.page.on('requestfailed', request => {
+        const {url, resourceType, method} = request
+        // Store a reference to that request, we'll need it to get more information
+        // about Mixed Content errors later
+        this.failedRequests.set(request._requestId, {url, resourceType, method} )
+      })
+      this.page._client.on('Network.loadingFailed', event => {
+        if (Object.is(event.blockedReason, 'mixed-content')) {
+          this.mixedContentIssues.add(event.requestId)
+        }
+      })
       resolve(this)
     })
+  }
+
+  get mixedContentLocations() {
+    const locations = []
+    for (let requestId of this.mixedContentIssues) {
+      locations.push(this.failedRequests.get(requestId))
+    }
+    return locations
   }
 
   /**
@@ -66,6 +88,7 @@ const chalk = require('chalk')
             console.log(`${chalk.bgBlue.white.bold(this.name)}\tvisiting ${chalk.green(location)}`)
             this.crawler.locked.add(location)
             await this.sleep(1000)
+            this.currentLocation = location
             await this.page.goto(location, {timeout: 20000})
             const links = await this.page.evaluate(() => {
               return Array.from(document.querySelectorAll('a')).map(link => link.href)
@@ -77,7 +100,7 @@ const chalk = require('chalk')
           this.crawler.errors.add(location)
         }
       }
-      resolve(true)
+      resolve(this)
     })
   }
 }

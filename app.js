@@ -3,12 +3,12 @@ const { Crawler } = require('./crawler.js')
 /**
  * @see crawler.js
  */
-const crawler = new Crawler({rootUrl: 'http://www.corse-le-gr20.com/', poolSize: 16})
+const crawler = new Crawler({rootUrl: 'https://fr.orson.io/', poolSize: 16})
 
 const main = async () => {
   try {
     await crawler.init()
-    const crawledUrls = await crawler.crawl()
+    const issues = await crawler.crawl()
     console.log('Done crawling. Find run information in report.txt')
     // Clean up
     await crawler.browser.close()

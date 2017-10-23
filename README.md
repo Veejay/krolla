@@ -6,12 +6,20 @@
 
 ## TODO
 
+### First version
+
 - [x] Add crawling ability
 - [x] Create a worker pool so that the code doesn't create millions of [Puppeteer](https://github.com/GoogleChrome/puppeteer) instances
 - [x] Add jsdoc
 - [x] Move class Worker to a separate module
-- [ ] Improve error handling in async chains
-- [ ] Implement **actual** reporting
-- [ ] Add throttling ability for slower backends
+- [x] Improve error handling in async chains
+- [x] Implement **actual** reporting
 - [x] Make it so that each `worker` doesn't have to wait on others to keep on crawling
-- [ ] Use [Puppeteer](https://github.com/GoogleChrome/puppeteer) further to indicate where the *Mixed Content* is located on the page
+- [x] Use [Puppeteer](https://github.com/GoogleChrome/puppeteer) further to report *Mixed Content*
+
+### Second version
+
+- [ ] Cleanup / refactoring
+- [ ] Add throttling capabilities
+- [ ] Explore streams
+- [ ] Explore generators to implement the pending urls queue
